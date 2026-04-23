@@ -1,0 +1,63 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-windows:
+    runs-on: windows-2022
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup CUDA
+      uses: Jimver/cuda-toolkit@v0.2.11
+      with:
+        cuda: '12.1.0'
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install pybind11 numpy pytest
+    
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+    
+    - name: Build and test
+      run: |
+        mkdir build
+        cd build
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTS=ON
+        cmake --build . --config Release
+        ctest -C Release --output-on-failure
+    
+  test-linux:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install CUDA
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y nvidia-cuda-toolkit
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get install -y cmake build-essential pybind11-dev
+        pip install numpy pytest
+    
+    - name: Build and test
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DBUILD_TESTS=ON
+        cmake --build . --config Release
+        ctest --output-on-failure

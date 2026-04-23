@@ -1,0 +1,50 @@
+# Build directories
+build/
+build_*/
+out/
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+
+# Compiled libraries
+*.dll
+*.so
+*.dylib
+*.pyd
+*.lib
+*.a
+*.exp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+*.egg
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Blender
+*.blend1
+*.blend2
+*.blend3
+
+# Cache
+cache/
+*.cache
+
+# Temporary
+tmp/
+temp/
+*.tmp

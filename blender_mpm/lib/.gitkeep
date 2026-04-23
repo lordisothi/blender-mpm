@@ -1,0 +1,2 @@
+# This directory will contain the compiled pympm library after building
+# Place pympm.pyd (Windows) or pympm.so (Linux) here

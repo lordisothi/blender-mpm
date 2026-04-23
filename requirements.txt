@@ -1,0 +1,16 @@
+# Python dependencies for building and running the MPM solver
+
+# Build dependencies
+pybind11>=2.10.0
+numpy>=1.21.0
+
+# Optional: for development and testing
+pytest>=7.0.0
+pytest-cov>=3.0.0
+
+# Documentation (optional)
+sphinx>=4.0.0
+sphinx-rtd-theme>=1.0.0
+
+# Note: The actual C++/CUDA library must be built separately
+# Run: python build.py
