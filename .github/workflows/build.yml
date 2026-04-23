@@ -3,26 +3,18 @@ name: Build MPM Solver
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  release:
-    types: [ created ]
+  workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup CUDA
-      uses: Jimver/cuda-toolkit@v0.2.11
-      with:
-        cuda: '12.1.0'
-        sub-packages: '[]'
+    - name: Checkout code
+      uses: actions/checkout@v4
     
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -30,99 +22,44 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pybind11 numpy
+      shell: pwsh
+    
+    - name: Install CUDA
+      uses: Jimver/cuda-toolkit@v0.2.15
+      id: cuda-toolkit
+      with:
+        cuda: '12.4.0'
+        use-local-cache: false
     
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
     
     - name: Configure CMake
       run: |
-        mkdir build
-        cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 `
-          -DCMAKE_BUILD_TYPE=Release `
-          -DCUDA_TOOLKIT_ROOT_DIR="C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1"
+        cmake -B build -S . -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+      shell: pwsh
     
     - name: Build
       run: |
-        cd build
-        cmake --build . --config Release --parallel 4
+        cmake --build build --config Release --parallel 4
+      shell: pwsh
     
     - name: Prepare addon
       run: |
-        # Copy built library to addon
-        Copy-Item build\bindings\Release\pympm.cp311-win_amd64.pyd blender_mpm\lib\pympm.pyd
-        # Copy CUDA runtime libs
-        Copy-Item "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin\cudart64_12.dll" blender_mpm\lib\
-        # Create zip
-        Compress-Archive -Path blender_mpm -DestinationPath blender_mpm_addon_windows.zip
+        if (Test-Path build\bindings\Release\pympm*.pyd) {
+          Copy-Item build\bindings\Release\pympm*.pyd blender_mpm\lib\pympm.pyd
+        }
+        if (Test-Path "$env:CUDA_PATH\bin\cudart64_12.dll") {
+          Copy-Item "$env:CUDA_PATH\bin\cudart64_12.dll" blender_mpm\lib\
+        }
+        Compress-Archive -Path blender_mpm -DestinationPath blender_mpm_addon_windows.zip -Force
+      shell: pwsh
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: blender_mpm_addon_windows
         path: blender_mpm_addon_windows.zip
-    
-    - name: Upload to release
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: blender_mpm_addon_windows.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-linux:
-    runs-on: ubuntu-22.04
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup CUDA
-      run: |
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
-        sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
-        wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda-repo-ubuntu2204-12-1-local_12.1.0-530.30.02-1_amd64.deb
-        sudo dpkg -i cuda-repo-ubuntu2204-12-1-local_12.1.0-530.30.02-1_amd64.deb
-        sudo cp /var/cuda-repo-ubuntu2204-12-1-local/cuda-*-keyring.gpg /usr/share/keyrings/
-        sudo apt-get update
-        sudo apt-get -y install cuda-toolkit-12-1
-    
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get install -y cmake build-essential python3-pybind11
-        python -m pip install numpy
-    
-    - name: Configure CMake
-      run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-    
-    - name: Build
-      run: |
-        cd build
-        cmake --build . --config Release --parallel 4
-    
-    - name: Prepare addon
-      run: |
-        cp build/bindings/pympm*.so blender_mpm/lib/pympm.so
-        cp /usr/local/cuda/lib64/libcudart.so.12 blender_mpm/lib/
-        zip -r blender_mpm_addon_linux.zip blender_mpm
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: blender_mpm_addon_linux
-        path: blender_mpm_addon_linux.zip
-    
-    - name: Upload to release
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: blender_mpm_addon_linux.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if-no-files-found: warn
